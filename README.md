@@ -11,6 +11,7 @@ To run, clone/download the repository and run `main.c`.
 The project currently supports two execution modes:
 1. Normal mode - default (`TEST_MODE 0`)
 2. Test mode - runs predefined test cases (`TEST_MODE 1`)
+
 To switch modes, set the value of `TEST_MODE` to either 0 or 1 on the first line of `main.c` file.
 
 ## What I learned
