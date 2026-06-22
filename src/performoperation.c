@@ -1,8 +1,5 @@
 /*
  * Created by Risa on 07.02.2026.
- *
- * TODO: Line 30, Tasks in main.c
- *
  */
 
 #include "../include/performoperation.h"
@@ -15,6 +12,7 @@ Feedback PerformOperationNew(char* input) {
     (char)*mainPointer;
     // initialization out of way:
     Feedback feedback = {0};
+    TermParseFeedback termParseFeedback = {0};
     feedback.status = 0;
     double a = 0.0;
     double b = 0.0;
@@ -22,12 +20,19 @@ Feedback PerformOperationNew(char* input) {
     uint8_t equalSignCount = 0;
     char* equalSignLoc = input;
     mainPointer = input;
+    bool* tempFlag = malloc(sizeof(bool));
+    if (tempFlag == NULL) {
+        return feedback;
+    }
+    *tempFlag = 1;
     while (*mainPointer != '\0') { // lets actually test whether there is only 1 equal sign
-        equalSignCount += *mainPointer++ == '=';
-        if (equalSignCount == 1) {
-            equalSignLoc = mainPointer - 1;
+        equalSignCount += *++mainPointer == '=';
+        if (equalSignCount == 1 && *tempFlag) {
+            equalSignLoc = mainPointer;
+            *tempFlag = 0;
         }
     }
+    free(tempFlag);
     if (equalSignCount != 1) {
         feedback.status = 1;
         return feedback;
@@ -49,48 +54,24 @@ Feedback PerformOperationNew(char* input) {
         // if pointer on end, means no "x" in the equation, so either no or infinite solutions
         feedback.order = 0;
         char* endPointer = mainPointer - 1;
-        mainPointer = input; // go to the start
-        while (PointerCheck(mainPointer)){
-            mainPointer++;
-        };
-        if (*mainPointer == '=') { // if you found =, means no non-zero digit was encountered
-            while (PointerCheck(endPointer)) { // start checking from the left
-                endPointer--;
-            }
-            if (*endPointer == '=') { // you found =, that means no non-zero digit was encountered
-                feedback.numOfSolutions = -1;
-            }else { // if non-zero digit, no solution
-                feedback.numOfSolutions = 0;
-            }
-        }else { // if non-zero digit, we check if the numbers on both side are the same, for now I do this the lazy way of just comparing both sides as strings even if edge cases like 0.50000 = 0.5 or 0.5 = 1/2 appear
-            char rightSide[64] = {0};
-            mainPointer = input; // again doing it imperatively to really learn the way to do things in memory
-            for (int i = 0; *mainPointer != '='; i++, mainPointer++) {
-                rightSide[i] = *mainPointer;
-            }
-            char leftSide[64] = {0};
-            mainPointer = equalSignLoc;
-            for (int i = 0; *mainPointer != '\0'; i++, mainPointer++) {
-                leftSide[i] = *mainPointer;
-            }
-            char* tempPointer1 = rightSide;
-            char* tempPointer2 = leftSide;
-            bool mismatch = false;
-            for (int i = 0; i < 64; i++, tempPointer1++, tempPointer2++) {
-                if (*tempPointer1 != *tempPointer2) {
-                    mismatch = true;
-                    break;
-                }
-            }
-            if (mismatch == true) {
-                feedback.numOfSolutions = 0;
-            }else {
-                feedback.numOfSolutions = -1;
-            }
+        // left side
+        termParseFeedback = TermParsing(mainPointer, input, equalSignLoc);
+        if (termParseFeedback.status == 1) {
+            feedback.status = 1;
+            return feedback;
         }
-        /*
-         * Possible extension to this part with checking whether the numbers are equal, that would mean infinite solutions too,
-         */
+        // right side
+        TermParseFeedback termParseFeedback2 = {0};
+        termParseFeedback2 = TermParsing(equalSignLoc + 1, equalSignLoc + 1, endPointer + 1);
+        if (termParseFeedback2.status == 1) {
+            feedback.status = 1;
+            return feedback;
+        }
+        if (fabs(termParseFeedback2.coefficient - termParseFeedback.coefficient) < 0.00001) { // identity
+            feedback.numOfSolutions = -1;
+        }else { // contradiction
+            feedback.numOfSolutions = 0;
+        }
         return feedback;
     }
     // now we arrived at x, we check if it is quadratic or not (for now we assume that the user typed it in correct format, that means quadratic term first, then linear, then constant, if they're present
@@ -104,7 +85,7 @@ Feedback PerformOperationNew(char* input) {
         capetFormat = 1;
     }
     if (*mainPointer == '2') {
-        char* xQuadTermLoc = xFirstLoc;
+        char* xTermLoc = xFirstLoc;
         char* twoInX2Loc = mainPointer; // we mark the location of the 2
         switch (*(twoInX2Loc + 1)) { // if the character after 2 is anything but +, - or = we return to avoid bugs
             case '+':
@@ -117,159 +98,228 @@ Feedback PerformOperationNew(char* input) {
         }
         mainPointer = input; // move to beginning
         feedback.order = 2;
-        char aSign = '+';
-        if (*input == '-') {
-            aSign = '-';
-            mainPointer++;
+        // a parsing
+        // TODO: Thought - the TermParsing() return value could be reduced to double only instead of the struct by removing the status variable and implementing it's 1 value as a 0 value of the double, since the status only changes to 0 if there is a issue in the input (this works for "a" in this case but might be harder to implement for "b" and "c" coefficients if we want the function to be generalized and work at all times)
+        termParseFeedback = TermParsing(mainPointer, input, xTermLoc);
+        if (termParseFeedback.status == 1) { // because if we return from the TermParsing function, there is an error in the input, so we need to return here too, since doesnt make sense to continue
+            feedback.status = 1;
+            return feedback;
         }
-        if (*input == '+') { // in case there is a +
-            mainPointer++;
-        }
-        // check if we are dealing with integer or not, we already moved the pointer to the first digit
-        while (*mainPointer != 'x' && *mainPointer != '.' && *mainPointer != ',' && *mainPointer != '/') {
-            mainPointer++;
-        }
-        if (*mainPointer == '.' || *mainPointer == ',') { // we found a decimal point
-            char* decimalALoc = mainPointer;
-            mainPointer++;
-            while (*mainPointer != 'x' || *mainPointer != '.' || *mainPointer != ',') {
-                mainPointer++;
-            }
-            if (*mainPointer == '.' || *mainPointer == ',') { // we return an error for 2 decimals
-                feedback.status = 1;
-                return feedback;
-            }
-            int digit = 0;
-            // we start with the left side of it
-            mainPointer = decimalALoc - 1;
-            for (int i = 0; mainPointer <= input && *mainPointer != '-' && *mainPointer != '+'; i++) { // we move till we find the end or the sign
-                digit = *mainPointer - '0';
-                a += digit * PerformOperationMyPow(10, i);
-                mainPointer--;
-            }
-            // we continue with right side
-            mainPointer = decimalALoc + 1;
-            for (int i = -1; *mainPointer != 'x'; i--) { // we move till we find x
-                digit = *mainPointer - '0';
-                a += digit * pow(10, i);
-                mainPointer++;
-            }
-            if (aSign == '-') {
-                a *= -1;
-            }
-        } else if (*mainPointer == '/') {// we found a fraction (so far support for only a simple one, might redo with a function for executing fractions with recursion if the fractions are nested
-            int numerator = 0;
-            int denominator = 0; // for now
-            int digit = 0;
-            char* SlashPointer = mainPointer;
-            // we start converting the left side (numerator)
-            // first we check it is not a double
-            while (mainPointer <= input) {
-                if (*mainPointer == '.'  || *mainPointer == ',') {
-                    feedback.status = 1;
-                    return feedback;
-                }
-                mainPointer--;
-            }
-            // then we convert
-            mainPointer = SlashPointer;
-            for (int i = 0;*mainPointer != '(' && *mainPointer != '-' && *mainPointer != '+' && mainPointer <= input; i++) { // checking for + and - in case someone forgets to put the bracket
-                digit = *mainPointer - '0';
-                numerator += digit * PerformOperationMyPow(10, i);
-                mainPointer--;
-            }
-            // then the denominator
-            mainPointer = SlashPointer++;
-            // first we check it is not a double
-            while (*mainPointer != 'x') {
-                if (*mainPointer == '.'  || *mainPointer == ',') {
-                    feedback.status = 1;
-                    return feedback;
-                }
-                mainPointer++;
-            }
-            // now check the sign just in case
-            mainPointer = SlashPointer++;
-            if (*mainPointer == '-') {
-                if (aSign == '-') { // if the of both the numerator and denominator is -, we make the sign of a + (since we already checked the sign of in the beginning
-                    aSign = '+';
-                }
-            }
-            // we convert the denominator
-            mainPointer = xQuadTermLoc - 1; // cant use xQuadTermLoc-- (returns the value of xQuadTermLoc and after that decrements, and therefore the mainPointer is on the x itself and not the character before the x) or --xQuadTermLoc (modifies the xQuadTermLoc variable)
-            if (*mainPointer == ')') { // if someone forgot the bracket we would be fine but if they have done it properly we move so we can start the loop below
-                mainPointer--;
-            }
-            for (int i = 0;*mainPointer != '/' && *mainPointer != '-' && *mainPointer != '+'; i++) { // checking for either the slash or the sign if someone put it there
-                digit = *mainPointer - '0';
-                denominator += digit * PerformOperationMyPow(10, i);
-                mainPointer--;
-            }
-            if (denominator == 0) { // if the denominator is zero, we return
-                feedback.status = 1;
-                return feedback;
-            }
-            a = (double)numerator / (double)denominator;
+        a = termParseFeedback.coefficient;
 
-            if (aSign == '-') { // don't change, the sign in the denominator was handled above, so this executes only if the numerator had a sign
-                a *= -1;
-            }
-        } else { // we found either int or nothing (1)
-            int digit = 0;
-            mainPointer = xQuadTermLoc - 1;
-            int i = 0;
-            for (i = 0; *mainPointer != '-' && *mainPointer != '+' && mainPointer >= input; i++) {
-                digit = *mainPointer - '0';
-                a += digit * PerformOperationMyPow(10, i);
-                mainPointer--;
-            }
-            if (i == 0) { // if the i is 0, then the pointer didn't move from the spot one before the x, therefore the x has a coeficient of 1
-                a = 1;
-            }
-            if (aSign == '-') {
-                a *= -1;
-            }
-        }
-        // now the b
+
+        // now the b or c
         mainPointer = twoInX2Loc + 1;
-        if (*mainPointer == '=') {
-
-        }
-        char bSign = '+';
-        if (*mainPointer == '-') {
-            bSign = '-';
+        while (*mainPointer != 'x' && *mainPointer != '=') { // iterate till "x" or "=" (to find if we have linear term or no (and in case of no, we stop at = sign)
             mainPointer++;
         }
-        if (*mainPointer == '+') { // in case there is a +
-            mainPointer++;
+        if (*mainPointer == '=') { // we at "=", so no linear ("bx") term
+            if (*(twoInX2Loc + 1) != '=') { // this is so that we know if there is a c term before the "=" sign or no (if value at mainPointer is "=", then quadratic term is alone). But because we have negated equality comparasion, this executes when quadratic term is not alone)
+                xTermLoc = twoInX2Loc; // we need to push the xTermLoc to the location of "twoInX2Loc" so that c Parsing works properly and behaves as if the "2" in "ax^2" is the "x" in "bx"
+                goto cParsing;
+            } // else - the quadratic term is alone, so we skip to discriminant calculation
+        }
+        if (*mainPointer == 'x') {
+            xTermLoc = mainPointer;
+            mainPointer = twoInX2Loc + 1;
+            // b parsing
+            termParseFeedback = TermParsing(mainPointer, twoInX2Loc + 1, xTermLoc);
+            if (termParseFeedback.status == 1) {
+                feedback.status = 1;
+                return feedback;
+            }
+            b = termParseFeedback.coefficient;
+            // c parsing
+            cParsing:
+                mainPointer = xTermLoc + 1;
+                while (PointerCheck(mainPointer)) {
+                    mainPointer++;
+                }
+                if (*mainPointer == '=') {
+                    c = 0;
+                }else {
+                    char* cLastDigitPointer = mainPointer; // this is probably redundant and we can just replace with equalSignLoc
+                    while (*cLastDigitPointer != '=') { // so that we know where the last digit before "=" is
+                        cLastDigitPointer++;
+                    }
+                    mainPointer = xTermLoc + 1;
+                    termParseFeedback = TermParsing(mainPointer, xTermLoc + 1, cLastDigitPointer);
+                    if (termParseFeedback.status == 1) {
+                        feedback.status = 1;
+                        return feedback;
+                    }
+                    c = termParseFeedback.coefficient;
+                }
+        }
+
+
+
+
+
+
+        // 1. Calculate Discriminant: D = b^2 - 4ac
+        double discriminant = (b * b) - (4 * a * c);
+
+        // 2. Determine Number of Solutions based on D
+        if (discriminant > 0) {
+            feedback.numOfSolutions = 2;
+            feedback.x1 = (- b + sqrt(discriminant)) / (2 * a);
+            feedback.x2 = (- b - sqrt(discriminant)) / (2 * a);
+        } else if (discriminant == 0) {
+            feedback.numOfSolutions = 1;
+            if (a == 0) {
+                feedback.numOfSolutions = -1;
+                feedback.order = 0;
+            }else {
+                feedback.x1 = - b / (2 * a);
+            }
+        } else {
+            feedback.numOfSolutions = 0; // Negative discriminant = no real solutions, but 2 complex solutions
+            // TODO: WHEN YOU IMPLEMENT COMPLEX SOLUTIONS, CHANGE THE numOfSolutions variable to value "-2"
         }
     }
-    /* REMOVE (JUST FOR TEST): */
 
-    // 1. Calculate Discriminant: D = b^2 - 4ac
-    double discriminant = (b * b) - (4 * a * c);
-
-    // 2. Determine Number of Solutions based on D
-    if (discriminant > 0) {
-        feedback.numOfSolutions = 2;
-    } else if (discriminant == 0) {
-        feedback.numOfSolutions = 1;
-    } else {
-        feedback.numOfSolutions = 0; // Negative discriminant = no real solutions
-    }
 
     // Special Case: Linear Equation (if a is 0, but b is not)
-    // Example: 0x^2 + 2x + 4 = 0  ->  2x = -4
+    // Example: 0x^2 + 2x + 4 = 0  ->  2x = -4 or just "2x + 4 = 0"
     if (a == 0 && b != 0) {
         feedback.order = 1; // Linear
         feedback.numOfSolutions = 1;
     }
 
 
-    feedback.a = a;
-    // feedback.b = b;      FOR TESTING ONLY
-    // feedback.c = c;
+    feedback.a = a;    //
+    feedback.b = b;    //  FOR TESTING ONLY
+    feedback.c = c;    //
 
+    return feedback;
+}
+
+TermParseFeedback TermParsing(char* mainPointer, char* startPointer, char* endPointer) { // pretty sure startPointer when evaluating the coefficients is always at the sign, endPointer does not point at the last digit, it is the character after last digit of the coefficient we parse, might have kept the xInTermPointer name, since technically in the constant term the x is to the power of 0, therefore it equals one and in the constant term case it would be at the place of the equal sign :))
+    mainPointer = startPointer;
+    TermParseFeedback feedback = {0};
+    feedback.status = 0;
+    char sign = '+';
+    if (*startPointer == '-') {
+        sign = '-';
+        mainPointer++;
+    }
+    if (*startPointer == '+') { // in case there is a "+"
+        mainPointer++;
+    }
+    // check if we are dealing with integer or not, we already moved the pointer to the first digit
+    while (*mainPointer != '.' && *mainPointer != ',' && *mainPointer != '/' && mainPointer < endPointer) {
+        mainPointer++;
+    }
+    if (*mainPointer == '.' || *mainPointer == ',') { // we found a decimal point
+        char* decimalLoc = mainPointer;
+        mainPointer++;
+        while (*mainPointer != '.' && *mainPointer != ',' && *mainPointer != '/' && mainPointer < endPointer) { // "=" for "c" term, which precedes "="
+            mainPointer++;
+        }
+        if (*mainPointer == '.' || *mainPointer == ',') { // we return an error for 2 decimals
+            feedback.status = 1;
+            return feedback;
+        }
+        int digit = 0;
+        // we start with the left side of it
+        mainPointer = decimalLoc - 1;
+        for (int i = 0; mainPointer >= startPointer && *mainPointer != '-' && *mainPointer != '+'; i++) { // we move till we find the end or the sign
+            digit = *mainPointer - '0';
+            feedback.coefficient += digit * PerformOperationMyPow(10, i);
+            mainPointer--;
+        }
+        // we continue with right side
+        digit = 0;
+        mainPointer = decimalLoc + 1;
+        for (int i = -1; mainPointer < endPointer; i--) { // we move till we find x
+            digit = *mainPointer - '0';
+            feedback.coefficient += digit * pow(10, i);
+            mainPointer++;
+        }
+        if (sign == '-') {
+            feedback.coefficient *= -1;
+        }
+    } else if (*mainPointer == '/') {// we found a fraction (so far support for only a simple one, might redo with a function for executing fractions with recursion if the fractions are nested)
+        int numerator = 0;
+        int denominator = 0; // for now
+        int digit = 0;
+        char* SlashPointer = mainPointer;
+        // we start converting the left side (numerator)
+        // first we check it is not a double, because so far no support for doubles
+        while (mainPointer > startPointer) {
+            if (*mainPointer == '.'  || *mainPointer == ',') {
+                feedback.status = 1;
+                return feedback;
+            }
+            mainPointer--;
+        }
+        // then we convert
+        mainPointer = SlashPointer - 1;
+        for (int i = 0; *mainPointer != '(' && *mainPointer != '-' && *mainPointer != '+' && mainPointer >= startPointer; i++) { // checking for + and - in case someone forgets to put the bracket
+            digit = *mainPointer - '0';
+            numerator += digit * PerformOperationMyPow(10, i);
+            mainPointer--;
+        }
+        if (*mainPointer == '-') {
+            if (sign == '+') {
+                sign = '-';
+            }
+        }
+        // then the denominator
+        mainPointer = SlashPointer + 1;
+        // first we check it is not a double
+        while (mainPointer < endPointer) {
+            if (*mainPointer == '.'  || *mainPointer == ',') {
+                feedback.status = 1;
+                return feedback;
+            }
+            mainPointer++;
+        }
+        // now check the sign just in case
+        mainPointer = SlashPointer + 1;
+        if (*mainPointer == '-') {
+            if (sign == '-') { // if the of both the numerator and denominator is -, we make the sign of a + (since we already checked the sign of in the beginning
+                sign = '+';
+            }else {
+                sign = '-';
+            }
+        }
+        // we convert the denominator
+        mainPointer = endPointer - 1; // cant use xQuadTermLoc-- (returns the value of xQuadTermLoc and after that decrements, and therefore the mainPointer is on the x itself and not the character before the x) or --xQuadTermLoc (modifies the xQuadTermLoc variable)
+        if (*mainPointer == ')') { // if someone forgot the bracket we would be fine but if they have done it properly we move so we can start the loop below
+            mainPointer--;
+        }
+        for (int i = 0;*mainPointer != '/' && *mainPointer != '-' && *mainPointer != '+'; i++) { // checking for either the slash or the sign if someone put it there
+            digit = *mainPointer - '0';
+            denominator += digit * PerformOperationMyPow(10, i);
+            mainPointer--;
+        }
+        if (denominator == 0) { // if the denominator is zero, we return
+            feedback.status = 1;
+            return feedback;
+        }
+        feedback.coefficient = (double)numerator / (double)denominator;
+
+        if (sign == '-') { // don't change, the sign in the denominator was handled above, so this executes only if the numerator had a sign
+            feedback.coefficient *= -1;
+        }
+    } else { // we found either int or nothing (1)
+        int digit = 0;
+        mainPointer = endPointer - 1;
+        int i = 0;
+        for (i = 0; *mainPointer != '-' && *mainPointer != '+' && mainPointer >= startPointer; i++) {
+            digit = *mainPointer - '0';
+            feedback.coefficient += digit * PerformOperationMyPow(10, i);
+            mainPointer--;
+        }
+        if (i == 0) { // if the i is 0, then the pointer didn't move from the spot one before the x, therefore the x has a coeficient of 1
+            feedback.coefficient = 1;
+        }
+        if (sign == '-') {
+            feedback.coefficient *= -1;
+        }
+    }
     return feedback;
 }
 

@@ -17,11 +17,17 @@ typedef struct {
     uint8_t status; // for returning, possible values: '0' - OK, '1' error in the input
 }Feedback;
 
+typedef struct {
+    double coefficient;
+    uint8_t status; // values - "0" proceed after function ends, "1" return immidietly from the function above (identical with status of Feedback struct values)
+} TermParseFeedback;
+
 Feedback PerformOperationNew(char* input);
 int PerformOperationMyPow(int ten, int i);
 Feedback PerformOperationOld(char* input);
 char* Shrink(char* input);
 char* ShrinkRemoveWhiteSpace(char* input);
+TermParseFeedback TermParsing(char* mainPointer, char* startPointer, char* xInTermPointer);
 
 bool PointerCheck(char* pointer);
 
