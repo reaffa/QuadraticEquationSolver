@@ -1,9 +1,8 @@
 # Quadratic Equation Solver
 
-The project is currently in pre-alpha stage.
-Experimental parser for processing and solving equations provided as text input.
+Parser for processing and solving quadratic equations provided as text input.
 
-The current implementation focuses primarily on quadratic term parsing and establishing architecture for future support of more complex expressions.
+The current implementation focuses primarily on the standard ax^2 + bx + c = 0 equation parsing and establishes architecture for future support of more complex expressions.
 
 ## Running modes
 To run, clone/download the repository and run `main.c`.
@@ -22,7 +21,6 @@ To switch modes, set the value of `TEST_MODE` to either 0 or 1 on the first line
 - Designing extensible parsing logic
 
 ## Planned improvements
-- Support linear and constant terms
 - Clean up the `PerformOperationNew()` function
 - Replace absolute pointer positions with relative offsets to reduce memory usage
 - Add parser documentation and supported syntax specification
