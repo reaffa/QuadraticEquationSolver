@@ -1,6 +1,7 @@
-#define TEST_MODE 0
+#define TEST_MODE 1
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "../include/performoperation.h"
 #include "../include/test_suite.h"
 
@@ -35,16 +36,22 @@ int main(void) {
 
 void RunProgram() {
     printf("Enter quadratic equation in the form: \"ax2 +- bx +- c = 0\",\n"
-                 "where \"a\", \"b\", \"c\" are real numbers\n"
+                 "where \"a\", \"b\", \"c\" are rational numbers\n"
                  "and enter either + or - between the terms.\n"
-                 "Enclose fractions in brackets and type only integers in fractions.\n");
+                 "Enclose fractions in brackets and type only integers in fractions.\n> ");
     char* tempInput = calloc(128, sizeof(char));
+    if (tempInput == NULL) {
+        printf("Memory allocation error.\n");
+        return;
+    }
     fgets(tempInput, 128, stdin);
     char* input = ShrinkRemoveWhiteSpace(tempInput);
     free(tempInput);
     Feedback feedback = PerformOperationNew(input);
     if (feedback.status == 1) {
         printf("Invalid input");
+    }else if (feedback.status == 2) {
+        printf("NULL pointer.");
     }else {
         printf("The equation is %s, has ", PrintMessageOrder(feedback.order));
         switch (feedback.numOfSolutions) {

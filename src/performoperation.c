@@ -3,25 +3,30 @@
  */
 
 #include "../include/performoperation.h"
+#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
+#define EPSILON 0.000001
 // #include "main.c" // TESTING - REMOVE
 
 Feedback PerformOperationNew(char* input) {
-    char* mainPointer = input;
-    (char)*mainPointer;
     // initialization out of way:
     Feedback feedback = {0};
+    feedback.status = 2;
+    assert(input != NULL);
     TermParseFeedback termParseFeedback = {0};
     feedback.status = 0;
     double a = 0.0;
     double b = 0.0;
     double c = 0.0;
     uint8_t equalSignCount = 0;
+    char* mainPointer = input;
+    (char)*mainPointer;
     char* equalSignLoc = input;
     mainPointer = input;
     bool* tempFlag = malloc(sizeof(bool));
     if (tempFlag == NULL) {
+        feedback.status = 2;
         return feedback;
     }
     *tempFlag = 1;
@@ -37,8 +42,6 @@ Feedback PerformOperationNew(char* input) {
         feedback.status = 1;
         return feedback;
     }
-    // now we test if constant (preferably zero) is on the right
-    // so
     // now we test if there is any x on the left (OR just use strchr() ofc, but I wanted to make it my own)
     mainPointer = input;
     while (*mainPointer != 'x' && *mainPointer != '=') { // move till you find x or equal sign
@@ -161,11 +164,7 @@ Feedback PerformOperationNew(char* input) {
         double discriminant = (b * b) - (4 * a * c);
 
         // 2. Determine Number of Solutions based on D
-        if (discriminant > 0) {
-            feedback.numOfSolutions = 2;
-            feedback.x1 = (- b + sqrt(discriminant)) / (2 * a);
-            feedback.x2 = (- b - sqrt(discriminant)) / (2 * a);
-        } else if (discriminant == 0) {
+        if (fabs(discriminant) <= EPSILON) {
             feedback.numOfSolutions = 1;
             if (a == 0) {
                 feedback.numOfSolutions = -1;
@@ -173,6 +172,10 @@ Feedback PerformOperationNew(char* input) {
             }else {
                 feedback.x1 = - b / (2 * a);
             }
+        }else if (discriminant > 0) {
+            feedback.numOfSolutions = 2;
+            feedback.x1 = (- b + sqrt(discriminant)) / (2 * a);
+            feedback.x2 = (- b - sqrt(discriminant)) / (2 * a);
         } else {
             feedback.numOfSolutions = 0; // Negative discriminant = no real solutions, but 2 complex solutions
             // TODO: WHEN YOU IMPLEMENT COMPLEX SOLUTIONS, CHANGE THE numOfSolutions variable to value "-2"
@@ -336,9 +339,7 @@ int PerformOperationMyPow(int ten, int i) {
 }
 
 bool PointerCheck(char* pointer) {
-    if (pointer == NULL) {
-        return NULL;
-    }
+    assert(pointer != NULL);
     switch (*pointer) {
         case '1':
         case '2':
@@ -357,9 +358,7 @@ bool PointerCheck(char* pointer) {
 }
 
 char* Shrink(char* input){
-    if (input == NULL) {
-        return NULL;
-    }
+    assert(input != NULL);
     char* start = input;
     // 1. Skip leading spaces
     // check for *start != '\0' to prevent crashing on empty strings

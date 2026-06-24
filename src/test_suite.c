@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <math.h>
 #include "performoperation.h"
+#define EPSILON 0.000001
 
 // Helper to make the main test function cleaner
 void RunIndividualTest(char* input, uint8_t expectedOrder, double expectedA, double expectedB, double expectedC, double expectedX1, double expectedX2, int expectedSolutions, int expectedStatus) {
@@ -26,15 +27,15 @@ void RunIndividualTest(char* input, uint8_t expectedOrder, double expectedA, dou
     }
 
     // 3. Check Parsed Variables
-    if (fabs(result.a - expectedA) > 0.001) {
+    if (fabs(result.a - expectedA) > EPSILON) {
         printf("FAILED -> a: %f (Expected %f)\n", result.a, expectedA);
         return;
     }
-    if (fabs(result.b - expectedB) > 0.001) {
+    if (fabs(result.b - expectedB) > EPSILON) {
         printf("FAILED -> b: %f (Expected %f)\n", result.b, expectedB);
         return;
     }
-    if (fabs(result.c - expectedC) > 0.001) {
+    if (fabs(result.c - expectedC) > EPSILON) {
         printf("FAILED -> c: %f (Expected %f)\n", result.c, expectedC);
         return;
     }
@@ -49,25 +50,25 @@ void RunIndividualTest(char* input, uint8_t expectedOrder, double expectedA, dou
 
     if (result.numOfSolutions == 2) {
         // Allow roots to match in either order (x1=A, x2=B OR x1=B, x2=A)
-        bool match1 = (fabs(result.x1 - expectedX1) < 0.001 && fabs(result.x2 - expectedX2) < 0.001);
-        bool match2 = (fabs(result.x1 - expectedX2) < 0.001 && fabs(result.x2 - expectedX1) < 0.001);
+        bool match1 = (fabs(result.x1 - expectedX1) < EPSILON && fabs(result.x2 - expectedX2) < EPSILON);
+        bool match2 = (fabs(result.x1 - expectedX2) < EPSILON && fabs(result.x2 - expectedX1) < EPSILON);
         if (!match1 && !match2) {
             printf("FAILED -> Roots: %f, %f (Expected %f, %f)\n", result.x1, result.x2, expectedX1, expectedX2);
             return;
         }
     }else if (result.numOfSolutions == 1) {
-        if (fabs(result.x1 - expectedX1) > 0.001) {
+        if (fabs(result.x1 - expectedX1) > EPSILON) {
             printf("FAILED -> x1: %f (Expected %f)\n", result.x1, expectedX1);
             return;
         }
-        if (fabs(result.x2 - 0.0) > 0.001) {
+        if (fabs(result.x2 - 0.0) > EPSILON) {
             printf("FAILED -> x2: %f (Expected 0.0 for D=0)\n", result.x2);
             return;
         }
     }else if (result.numOfSolutions == -2) {
         // complex solutions, logic later
     }else { // 0 or -1 solutions
-        if (fabs(result.x1 - 0.0) > 0.001 || fabs(result.x2 - 0.0) > 0.001) {
+        if (fabs(result.x1 - 0.0) > EPSILON || fabs(result.x2 - 0.0) > EPSILON) {
             printf("FAILED -> Default Roots not 0.0 (Got %f, %f)\n", result.x1, result.x2);
             return;
         }
